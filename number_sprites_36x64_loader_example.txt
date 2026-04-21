@@ -1,0 +1,67 @@
+// number_sprites_36x64.spr format
+// Header:
+//   bytes 0..3   : "SPRT"
+//   bytes 4..5   : width   (uint16_t, little-endian)
+//   bytes 6..7   : height  (uint16_t, little-endian)
+//   bytes 8..9   : count   (uint16_t, little-endian)
+//   bytes 10..11 : reserved
+//
+// For each sprite:
+//   byte  0      : ASCII symbol ('0'..'9' or ':')
+//   bytes 1..7   : reserved
+//   bytes 8..519 : 64 rows of uint64_t, little-endian
+//
+// Each row uses only the lower 36 bits.
+// Bit 0 = leftmost pixel, bit 35 = rightmost pixel.
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+
+typedef struct {
+    char symbol;
+    uint64_t rows[64];
+} Sprite36x64;
+
+typedef struct {
+    uint16_t width;
+    uint16_t height;
+    uint16_t count;
+    Sprite36x64 sprites[11];
+} SpriteFile36x64;
+
+// Returns true on success.
+bool loadSpriteFile(fs::FS &fs, const char *path, SpriteFile36x64 *out) {
+    File f = fs.open(path, FILE_READ);
+    if (!f) return false;
+
+    char magic[4];
+    if (f.read((uint8_t*)magic, 4) != 4) return false;
+    if (memcmp(magic, "SPRT", 4) != 0) return false;
+
+    uint16_t reserved;
+    if (f.read((uint8_t*)&out->width, 2) != 2) return false;
+    if (f.read((uint8_t*)&out->height, 2) != 2) return false;
+    if (f.read((uint8_t*)&out->count, 2) != 2) return false;
+    if (f.read((uint8_t*)&reserved, 2) != 2) return false;
+
+    if (out->width != 36 || out->height != 64 || out->count > 11) return false;
+
+    for (uint16_t i = 0; i < out->count; i++) {
+        if (f.read((uint8_t*)&out->sprites[i].symbol, 1) != 1) return false;
+        uint8_t pad[7];
+        if (f.read(pad, 7) != 7) return false;
+        if (f.read((uint8_t*)out->sprites[i].rows, 64 * sizeof(uint64_t)) != 64 * sizeof(uint64_t)) return false;
+    }
+
+    f.close();
+    return true;
+}
+
+// Helper to find a sprite by symbol.
+const Sprite36x64* getSprite(const SpriteFile36x64 *file, char c) {
+    for (uint16_t i = 0; i < file->count; i++) {
+        if (file->sprites[i].symbol == c) return &file->sprites[i];
+    }
+    return nullptr;
+}
