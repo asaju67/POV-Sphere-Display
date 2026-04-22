@@ -18,6 +18,7 @@ struct AppState {
 
   String lastReceivedHex;
   bool timerMode;
+  bool timerSpritesReady;
   String timerText;
   int countdownHours;
   int countdownMinutes;
@@ -43,6 +44,7 @@ struct AppState {
       fixedShiftIntervalMicros(0),
       lastReceivedHex(""),
       timerMode(false),
+      timerSpritesReady(false),
       timerText(""),
       countdownHours(0),
       countdownMinutes(0),

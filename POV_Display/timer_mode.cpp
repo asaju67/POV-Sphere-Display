@@ -22,6 +22,8 @@ static bool parseTimeString(const char* text, int& outHours, int& outMinutes, in
 }
 
 bool initTimerMode() {
+  appState.timerSpritesReady = false;
+
   if (!initSpriteSd()) {
     return false;
   }
@@ -31,6 +33,7 @@ bool initTimerMode() {
     return false;
   }
 
+  appState.timerSpritesReady = true;
   return true;
 }
 
@@ -46,7 +49,13 @@ bool setTimerModeFromTimeString(const char* timeText) {
 
   const SpriteFile36x64* spriteFile = getLoadedSpriteFile();
   if (!spriteFile) {
-    return false;
+    if (!initTimerMode()) {
+      return false;
+    }
+    spriteFile = getLoadedSpriteFile();
+    if (!spriteFile) {
+      return false;
+    }
   }
 
   char normalized[9];

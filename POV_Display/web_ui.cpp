@@ -269,7 +269,7 @@ void handleSubmitPatterns() {
     }
     const String timerValue = appState.server.arg("timer");
     ok = setTimerModeFromTimeString(timerValue.c_str());
-    message = ok ? "Timer loaded successfully." : "Invalid time format. Use HH:MM:SS.";
+    message = ok ? "Timer loaded successfully." : "Failed to load timer. Use HH:MM:SS and ensure the timer sprite file is available.";
   } else if (mode == "hex") {
     if (!appState.server.hasArg("patterns")) {
       appState.server.send(400, "text/plain", "Error: missing patterns value.");
