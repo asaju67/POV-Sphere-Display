@@ -27,12 +27,15 @@ struct AppState {
 
   // Hall timing globals
   volatile unsigned long lastHallEdgeMicros;
-  volatile unsigned long latestPulseIntervalMicros;
-  volatile bool newPulseCaptured;
+  volatile unsigned long latestRotationIntervalMicros;
+  volatile bool newRotationCaptured;
 
-  // Smoothed speed state
-  float smoothedRevPeriodMicros;
-  float smoothedRPM;
+  // Hall-derived speed state
+  unsigned long rotationIntervalsMicros[HALL_RPM_AVERAGE_SAMPLES];
+  int rotationIntervalIndex;
+  int rotationIntervalCount;
+  unsigned long averageRotationPeriodMicros;
+  float hallRPM;
   unsigned long liveStepIntervalMicros;
   bool hallSignalValid;
 
@@ -51,12 +54,18 @@ struct AppState {
       countdownSeconds(0),
       lastCountdownUpdateMillis(0),
       lastHallEdgeMicros(0),
-      latestPulseIntervalMicros(0),
-      newPulseCaptured(false),
-      smoothedRevPeriodMicros(0.0f),
-      smoothedRPM(0.0f),
+      latestRotationIntervalMicros(0),
+      newRotationCaptured(false),
+      rotationIntervalIndex(0),
+      rotationIntervalCount(0),
+      averageRotationPeriodMicros(0),
+      hallRPM(0.0f),
       liveStepIntervalMicros(0),
-      hallSignalValid(false) {}
+      hallSignalValid(false) {
+    for (int i = 0; i < HALL_RPM_AVERAGE_SAMPLES; i++) {
+      rotationIntervalsMicros[i] = 0;
+    }
+  }
 };
 
 extern AppState appState;

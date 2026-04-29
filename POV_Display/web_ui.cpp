@@ -316,7 +316,7 @@ void handleStatus() {
   json += "\"timer_text\":\"" + escapeJson(appState.timerText) + "\",";
   json += "\"fixed_hz\":" + String(LATCH_RATE_HZ, 2) + ",";
   json += "\"step_interval_us\":" + String((unsigned long)(USE_HALL_SENSOR ? appState.liveStepIntervalMicros : appState.fixedShiftIntervalMicros)) + ",";
-  json += "\"rpm\":\"" + String(appState.smoothedRPM, 1) + "\",";
+  json += "\"rpm\":\"" + String(appState.hallRPM, 1) + "\",";
   json += "\"hall_valid\":\"" + hallValidStr + "\",";
   json += "\"last_hex_csv\":\"" + escapeJson(appState.lastReceivedHex) + "\"";
   json += "}";

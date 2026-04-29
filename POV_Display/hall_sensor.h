@@ -6,5 +6,6 @@
 void initHallSensor();
 void IRAM_ATTR hallISR();
 void updateHallDerivedTiming();
+void printRawHallSensorValue();
 
 #endif

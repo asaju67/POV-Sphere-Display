@@ -2,21 +2,38 @@
 #include "app_state.h"
 #include "config.h"
 
+static void resetHallAveraging() {
+  for (int i = 0; i < HALL_RPM_AVERAGE_SAMPLES; i++) {
+    appState.rotationIntervalsMicros[i] = 0;
+  }
+
+  appState.rotationIntervalIndex = 0;
+  appState.rotationIntervalCount = 0;
+  appState.averageRotationPeriodMicros = 0;
+  appState.hallRPM = 0.0f;
+}
+
 void IRAM_ATTR hallISR() {
   unsigned long now = micros();
-  unsigned long delta = now - appState.lastHallEdgeMicros;
+  unsigned long lastEdge = appState.lastHallEdgeMicros;
 
+  if (lastEdge == 0) {
+    appState.lastHallEdgeMicros = now;
+    return;
+  }
+
+  unsigned long delta = now - lastEdge;
   if (delta < HALL_DEBOUNCE_US) return;
 
-  appState.latestPulseIntervalMicros = delta;
+  appState.latestRotationIntervalMicros = delta;
   appState.lastHallEdgeMicros = now;
-  appState.newPulseCaptured = true;
+  appState.newRotationCaptured = true;
 }
 
 void initHallSensor() {
 #if USE_HALL_SENSOR
   pinMode(HALL_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(HALL_PIN), hallISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(HALL_PIN), hallISR, FALLING);
 #endif
 }
 
@@ -24,40 +41,62 @@ void updateHallDerivedTiming() {
 #if USE_HALL_SENSOR
   unsigned long now = micros();
 
-  if (appState.newPulseCaptured) {
+  if (appState.newRotationCaptured) {
     noInterrupts();
-    unsigned long pulseUs = appState.latestPulseIntervalMicros;
-    appState.newPulseCaptured = false;
+    unsigned long rotationUs = appState.latestRotationIntervalMicros * HALL_PULSES_PER_REV;
+    appState.newRotationCaptured = false;
     interrupts();
 
-    if (pulseUs > 0) {
-      float revPeriodUs = pulseUs * HALL_PULSES_PER_REV;
-
-      if (appState.smoothedRevPeriodMicros <= 0.0f) {
-        appState.smoothedRevPeriodMicros = revPeriodUs;
-      } else {
-        appState.smoothedRevPeriodMicros =
-          (RPM_SMOOTHING_ALPHA * revPeriodUs) +
-          ((1.0f - RPM_SMOOTHING_ALPHA) * appState.smoothedRevPeriodMicros);
+    if (rotationUs > 0) {
+      appState.rotationIntervalsMicros[appState.rotationIntervalIndex] = rotationUs;
+      appState.rotationIntervalIndex = (appState.rotationIntervalIndex + 1) % HALL_RPM_AVERAGE_SAMPLES;
+      if (appState.rotationIntervalCount < HALL_RPM_AVERAGE_SAMPLES) {
+        appState.rotationIntervalCount++;
       }
 
-      appState.smoothedRPM = 60000000.0f / appState.smoothedRevPeriodMicros;
-      appState.hallSignalValid = true;
+      if (appState.rotationIntervalCount == HALL_RPM_AVERAGE_SAMPLES) {
+        unsigned long totalRotationUs = 0;
+        for (int i = 0; i < HALL_RPM_AVERAGE_SAMPLES; i++) {
+          totalRotationUs += appState.rotationIntervalsMicros[i];
+        }
 
-      if (appState.patternLength > 0) {
-        appState.liveStepIntervalMicros = (unsigned long)(appState.smoothedRevPeriodMicros / appState.patternLength);
-        if (appState.liveStepIntervalMicros == 0) appState.liveStepIntervalMicros = 1;
+        appState.averageRotationPeriodMicros = totalRotationUs / HALL_RPM_AVERAGE_SAMPLES;
+        appState.hallRPM = 60000000.0f / appState.averageRotationPeriodMicros;
+        appState.hallSignalValid = true;
+
+        if (appState.patternLength > 0) {
+          appState.liveStepIntervalMicros = appState.averageRotationPeriodMicros / appState.patternLength;
+          if (appState.liveStepIntervalMicros == 0) appState.liveStepIntervalMicros = 1;
+        }
       }
     }
   }
 
-  if ((now - appState.lastHallEdgeMicros) > HALL_TIMEOUT_US) {
+  if (appState.lastHallEdgeMicros != 0 && (now - appState.lastHallEdgeMicros) > HALL_TIMEOUT_US) {
+    noInterrupts();
+    appState.lastHallEdgeMicros = 0;
+    appState.newRotationCaptured = false;
+    interrupts();
+
+    resetHallAveraging();
     appState.hallSignalValid = false;
-    appState.smoothedRPM = 0.0f;
   }
 #else
   appState.hallSignalValid = false;
-  appState.smoothedRPM = 0.0f;
+  appState.hallRPM = 0.0f;
   appState.liveStepIntervalMicros = appState.fixedShiftIntervalMicros;
+#endif
+}
+
+void printRawHallSensorValue() {
+#if USE_HALL_SENSOR
+  static unsigned long lastPrintMillis = 0;
+  unsigned long now = millis();
+
+  if (now - lastPrintMillis < HALL_RAW_PRINT_MS) return;
+  lastPrintMillis = now;
+
+  Serial.print("Hall raw digital=");
+  Serial.println(digitalRead(HALL_PIN));
 #endif
 }

@@ -65,6 +65,7 @@ void setup() {
 void loop() {
   appState.server.handleClient();
   updateHallDerivedTiming();
+  printRawHallSensorValue();
   updateTimerCountdown();
 
   if (appState.patternLength <= 0) return;
