@@ -24,7 +24,7 @@ static constexpr int MAX_PATTERNS = 360;
 // 0 = fixed latch rate
 // 1 = hall-sensor-controlled rate
 // -------------------------------
-#define USE_HALL_SENSOR 1
+#define USE_HALL_SENSOR 0
 
 // Fixed mode latch/update rate in Hz
 static constexpr float LATCH_RATE_HZ = 30.0f;
@@ -37,6 +37,6 @@ static constexpr unsigned long HALL_TIMEOUT_US = 1000000;  // if no pulse in 1 s
 static constexpr unsigned long HALL_RAW_PRINT_MS = 250;    // serial print interval for raw hall pin value
 
 // Set true if your LED driver logic is active-low
-static constexpr bool INVERT_OUTPUT_BITS = true;
+static constexpr bool INVERT_OUTPUT_BITS = false;
 
 #endif
